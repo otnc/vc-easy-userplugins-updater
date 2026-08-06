@@ -1,6 +1,6 @@
 /*
  * Vencord, a Discord client mod
- * Copyright (c) 2026 Vendicated and contributors
+ * Copyright (c) 2026 otoneko.
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
@@ -46,7 +46,7 @@ function UserpluginUpdaterIcon(props: IconProps) {
 export default definePlugin({
     name: "UserpluginUpdater",
     description: "Update your git-cloned userplugins and rebuild Vencord without leaving Discord",
-    authors: [{ name: "pineapple", id: 0n }],
+    authors: [{ name: "otoneko.", id: 236727759672442880n }],
     tags: ["Utility", "Developers"],
 
     settings,
