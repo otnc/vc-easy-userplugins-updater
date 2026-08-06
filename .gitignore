@@ -1,0 +1,15 @@
+# Only needed to type-check outside a Vencord checkout; never wanted in src/userplugins
+node_modules/
+
+# pnpm-lock.yaml is committed on purpose so the type package stays pinned.
+# Other lockfiles would just mean a second package manager crept in.
+package-lock.json
+yarn.lock
+bun.lock
+
+*.tsbuildinfo
+*.log
+
+.DS_Store
+Thumbs.db
+.idea/
