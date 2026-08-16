@@ -1,0 +1,4 @@
+# Keep line endings stable no matter what core.autocrlf is set to, so a checkout on
+# Windows matches the `end_of_line = lf` in .editorconfig instead of being rewritten
+# to CRLF. Everything in this repository is text.
+* text=auto eol=lf
