@@ -8,7 +8,7 @@ import { Logger } from "@utils/Logger";
 import type { PluginNative } from "@utils/types";
 
 import { settings } from "./settings";
-import type { RepoInfo, ToolVersions } from "./types";
+import type { RepoInfo, Tools } from "./types";
 
 export const UpdaterLogger = new Logger("UserpluginUpdater", "#b6e3a1");
 
@@ -70,8 +70,9 @@ export async function checkForUpdates(doFetch = true): Promise<RepoInfo[]> {
     return repos;
 }
 
-export function getToolVersions(): Promise<ToolVersions> {
-    return getNative().getToolVersions(settings.store.pnpmCommand);
+export function getTools(): Promise<Tools> {
+    const { nodeCommand, pnpmCommand } = settings.store;
+    return getNative().getTools(nodeCommand, pnpmCommand);
 }
 
 export interface UpdateResult {
@@ -85,14 +86,55 @@ export interface UpdateResult {
     built: boolean;
 }
 
+/** Whether a pull has landed that no successful build has picked up yet. */
+export function isRebuildPending() {
+    return settings.store.pendingRebuild === true;
+}
+
 /**
- * Pulls the given repositories, then reinstalls dependencies and rebuilds Vencord.
- * The build is what actually makes the new plugin code take effect, so it always runs
- * last and only if at least one repository moved.
+ * Reinstalls dependencies and rebuilds Vencord. Split out from {@link runUpdate} so a
+ * rebuild that failed - a missing node, a broken build - can be retried on its own. Once
+ * the repositories have been pulled there is nothing left for `runUpdate` to do, so
+ * without this the UI would offer no way forward.
+ */
+export async function runRebuild(log: (line: string) => void): Promise<boolean> {
+    const native = getNative();
+    const { runInstall, nodeCommand, pnpmCommand } = settings.store;
+
+    if (runInstall) {
+        log("> pnpm install --frozen-lockfile");
+        const install = await native.installDeps(nodeCommand, pnpmCommand);
+
+        // Deliberately not fatal. Updating a userplugin practically never changes Vencord's
+        // own dependencies, so refusing to build because pnpm is missing would strand the
+        // tree in a pulled-but-not-built state. If deps really did change, the build below
+        // fails with a much clearer error anyway.
+        if (install.ok) log("  dependencies are up to date");
+        else log(`  skipped: ${firstLines(install.stderr, 2)}`);
+    }
+
+    log("> node scripts/build/build.mjs");
+    const build = await native.buildVencord(nodeCommand);
+
+    if (!build.ok) {
+        log(`  build failed: ${firstLines(build.stderr)}`);
+        return false;
+    }
+
+    log("  build finished");
+    settings.store.pendingRebuild = false;
+    emit();
+
+    return true;
+}
+
+/**
+ * Pulls the given repositories, then rebuilds. The build is what actually makes the new
+ * plugin code take effect, so it always runs last and only if at least one repository moved.
  */
 export async function runUpdate(targets: RepoInfo[], log: (line: string) => void): Promise<UpdateResult> {
     const native = getNative();
-    const { pullMode, runInstall, pnpmCommand } = settings.store;
+    const { pullMode } = settings.store;
 
     const result: UpdateResult = { ok: false, pulled: [], failed: [], built: false };
 
@@ -114,39 +156,18 @@ export async function runUpdate(targets: RepoInfo[], log: (line: string) => void
 
         log(`  ${repo.name} updated`);
         result.pulled.push(repo.name);
+        // The tree has moved; record that before anything downstream can fail.
+        settings.store.pendingRebuild = true;
     }
 
-    if (result.pulled.length === 0) {
+    if (result.pulled.length === 0 && !isRebuildPending()) {
         log("Nothing was pulled, skipping the rebuild.");
         await checkForUpdates(false).catch(() => { });
         return result;
     }
 
-    if (runInstall) {
-        log(`> ${pnpmCommand} install --frozen-lockfile`);
-        const install = await native.installDeps(pnpmCommand);
-
-        if (!install.ok) {
-            log(`  failed: ${firstLines(install.stderr)}`);
-            await checkForUpdates(false).catch(() => { });
-            return result;
-        }
-
-        log("  dependencies are up to date");
-    }
-
-    log("> node scripts/build/build.mjs");
-    const build = await native.buildVencord();
-
-    if (!build.ok) {
-        log(`  build failed: ${firstLines(build.stderr)}`);
-        await checkForUpdates(false).catch(() => { });
-        return result;
-    }
-
-    log("  build finished");
-    result.built = true;
-    result.ok = result.failed.length === 0;
+    result.built = await runRebuild(log);
+    result.ok = result.built && result.failed.length === 0;
 
     await checkForUpdates(false).catch(() => { });
 

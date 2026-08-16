@@ -7,10 +7,11 @@
 import { execFile as cpExecFile, ExecFileOptions } from "child_process";
 import { existsSync } from "fs";
 import { readdir } from "fs/promises";
-import { basename, join, relative, sep } from "path";
+import { homedir } from "os";
+import { basename, dirname, join, relative, sep } from "path";
 import { promisify } from "util";
 
-import type { CommandResult, CommitInfo, IpcEvent, PullMode, RepoInfo, ToolVersions } from "./types";
+import type { CommandResult, CommitInfo, IpcEvent, PullMode, RepoInfo, ResolvedTool, ToolName, Tools } from "./types";
 
 const execFile = promisify(cpExecFile);
 
@@ -30,7 +31,7 @@ const BASE_OPTS: ExecFileOptions = { maxBuffer: 64 * 1024 * 1024 };
 /** Folders that can never be a userplugin repository. */
 const IGNORED_DIRS = new Set(["node_modules", ".git", ".github", ".vscode", "dist"]);
 
-/** Characters that must never reach a shell. Used to vet the user configured pnpm command. */
+/** Characters that must never reach a shell. Used to vet configured command paths. */
 const UNSAFE_SHELL_CHARS = /["&|;<>^`$()\n\r]/;
 
 function toStr(value: unknown) {
@@ -55,10 +56,191 @@ async function tryRun(file: string, args: string[], opts: ExecFileOptions = {}):
     }
 }
 
-const gitIn = (cwd: string) => (...args: string[]) => tryRun("git", args, { cwd });
+// #region tool discovery
+
+/*
+ * Discord is started from Explorer or a shortcut, so it only inherits the persistent
+ * machine/user PATH. Version managers that inject their shims from a shell hook - fnm,
+ * mise, asdf, nvm.sh, and corepack shims that live inside a managed node install - are
+ * invisible to it even though they work perfectly in a terminal. nvm-windows happened to
+ * work only because it maintains a symlink at a fixed location that is on the real PATH.
+ *
+ * So: try PATH, but do not trust it. Fall back to the well-known install locations, and
+ * finally to `fnm exec`, since fnm's own binary usually is on PATH even when the node it
+ * manages is not.
+ */
+
+const HOME = homedir();
+const { APPDATA, LOCALAPPDATA, FNM_DIR, VOLTA_HOME, ProgramFiles } = process.env;
+
+const exeName = (name: string) => (isWindows ? `${name}.exe` : name);
+
+/** Where fnm keeps the binaries of the version aliased to `default`. */
+function fnmDefaultBinDirs() {
+    const roots: string[] = [];
+
+    if (FNM_DIR) roots.push(FNM_DIR);
+    if (isWindows) {
+        if (APPDATA) roots.push(join(APPDATA, "fnm"));
+        if (LOCALAPPDATA) roots.push(join(LOCALAPPDATA, "fnm"));
+    } else {
+        roots.push(join(HOME, ".fnm"), join(HOME, ".local", "share", "fnm"));
+    }
+
+    // Windows installs put the binaries straight into the install dir, unix uses bin/
+    return roots.map(root => isWindows
+        ? join(root, "aliases", "default")
+        : join(root, "aliases", "default", "bin"));
+}
+
+function nodeCandidates() {
+    const out = fnmDefaultBinDirs().map(dir => join(dir, exeName("node")));
+
+    if (isWindows) {
+        if (VOLTA_HOME) out.push(join(VOLTA_HOME, "bin", "node.exe"));
+        if (LOCALAPPDATA) out.push(join(LOCALAPPDATA, "Volta", "bin", "node.exe"));
+        // where both nvm-windows' symlink and the official installer put node
+        if (ProgramFiles) out.push(join(ProgramFiles, "nodejs", "node.exe"));
+    } else {
+        out.push(
+            join(HOME, ".volta", "bin", "node"),
+            join(HOME, ".local", "share", "mise", "shims", "node"),
+            join(HOME, ".asdf", "shims", "node"),
+            "/usr/local/bin/node",
+            "/opt/homebrew/bin/node",
+            "/usr/bin/node"
+        );
+    }
+
+    return out;
+}
+
+function pnpmCandidates(nodeDir: string | null) {
+    const out: string[] = [];
+
+    // corepack drops its shims right next to the node binary it belongs to
+    if (nodeDir) out.push(join(nodeDir, isWindows ? "pnpm.cmd" : "pnpm"));
+
+    if (isWindows) {
+        if (LOCALAPPDATA) out.push(join(LOCALAPPDATA, "pnpm", "pnpm.exe"));
+    } else {
+        out.push(
+            join(HOME, ".local", "share", "pnpm", "pnpm"),
+            "/usr/local/bin/pnpm",
+            "/opt/homebrew/bin/pnpm"
+        );
+    }
+
+    return out;
+}
+
+function gitCandidates() {
+    if (!isWindows) return ["/usr/bin/git", "/usr/local/bin/git", "/opt/homebrew/bin/git"];
+
+    const roots = [ProgramFiles, process.env["ProgramFiles(x86)"], LOCALAPPDATA && join(LOCALAPPDATA, "Programs")];
+    return roots.filter(Boolean).map(root => join(root as string, "Git", "cmd", "git.exe"));
+}
+
+/** execFile cannot launch .cmd/.bat shims, and on Windows a bare name usually resolves to one. */
+function needsShell(command: string) {
+    return isWindows && !command.toLowerCase().endsWith(".exe");
+}
+
+function quoteIfNeeded(command: string) {
+    return needsShell(command) && command.includes(" ") ? `"${command}"` : command;
+}
+
+function runTool(tool: ResolvedTool, args: string[], opts: ExecFileOptions = {}) {
+    return tryRun(quoteIfNeeded(tool.command), [...tool.args, ...args], { shell: tool.shell, ...opts });
+}
+
+/** Runs `<command> <args> --version` and, if that works, reports the tool as usable. */
+async function probe(command: string, args: string[], source: string): Promise<ResolvedTool | null> {
+    if (UNSAFE_SHELL_CHARS.test(command)) return null;
+
+    const tool: ResolvedTool = { command, args, shell: needsShell(command), version: null, source };
+    const res = await runTool(tool, ["--version"], { cwd: VENCORD_SRC_DIR });
+    if (!res.ok) return null;
+
+    tool.version = res.stdout.trim().split("\n")[0] || null;
+    return tool;
+}
+
+async function resolveTool(name: ToolName, configured: string, candidates: string[]): Promise<ResolvedTool | null> {
+    // A configured path wins, but only if it actually works - otherwise a stale setting
+    // would permanently mask a perfectly good installation elsewhere.
+    const wanted = configured.trim();
+    if (wanted) {
+        const fromSetting = await probe(wanted, [], "plugin setting");
+        if (fromSetting) return fromSetting;
+    }
+
+    const fromPath = await probe(name, [], "PATH");
+    if (fromPath) return fromPath;
+
+    for (const candidate of candidates) {
+        if (!existsSync(candidate)) continue;
+        const found = await probe(candidate, [], candidate);
+        if (found) return found;
+    }
+
+    if (name !== "git") {
+        const viaFnm = await probe("fnm", ["exec", "--using=default", "--", name], "fnm exec");
+        if (viaFnm) return viaFnm;
+    }
+
+    return null;
+}
+
+async function resolveTools(nodeCommand: string, pnpmCommand: string): Promise<Tools> {
+    const [git, node] = await Promise.all([
+        resolveTool("git", "", gitCandidates()),
+        resolveTool("node", nodeCommand, nodeCandidates())
+    ]);
+
+    // Absolute paths tell us where corepack's pnpm shim would live; a bare "node" does not.
+    const nodeDir = node?.command.includes(sep) ? dirname(node.command) : null;
+
+    let pnpm = await resolveTool("pnpm", pnpmCommand, pnpmCandidates(nodeDir));
+
+    if (!pnpm && nodeDir) {
+        const corepack = join(nodeDir, isWindows ? "corepack.cmd" : "corepack");
+        if (existsSync(corepack)) pnpm = await probe(corepack, ["pnpm"], `${corepack} pnpm`);
+    }
+
+    return { git, node, pnpm };
+}
+
+// git is needed for every scan, so remember where it is rather than probing each time.
+let cachedGit: ResolvedTool | null | undefined;
+
+async function getGit() {
+    if (cachedGit === undefined) cachedGit = await resolveTool("git", "", gitCandidates());
+    return cachedGit;
+}
+
+// #endregion
+
+const gitIn = (git: ResolvedTool, cwd: string) => (...args: string[]) => runTool(git, args, { cwd });
 
 function toId(dir: string) {
     return relative(VENCORD_SRC_DIR, dir).split(sep).join("/");
+}
+
+function emptyRepoInfo(dir: string): RepoInfo {
+    return {
+        id: toId(dir),
+        name: basename(dir),
+        path: dir,
+        branch: null,
+        upstream: null,
+        remoteUrl: null,
+        dirty: false,
+        ahead: 0,
+        behind: 0,
+        commits: [],
+        error: null
+    };
 }
 
 /**
@@ -98,22 +280,9 @@ async function resolveRepoId(id: string): Promise<string | null> {
     return dirs.find(dir => toId(dir) === id) ?? null;
 }
 
-async function getRepoInfo(dir: string, doFetch: boolean): Promise<RepoInfo> {
-    const git = gitIn(dir);
-
-    const info: RepoInfo = {
-        id: toId(dir),
-        name: basename(dir),
-        path: dir,
-        branch: null,
-        upstream: null,
-        remoteUrl: null,
-        dirty: false,
-        ahead: 0,
-        behind: 0,
-        commits: [],
-        error: null
-    };
+async function getRepoInfo(gitTool: ResolvedTool, dir: string, doFetch: boolean): Promise<RepoInfo> {
+    const git = gitIn(gitTool, dir);
+    const info = emptyRepoInfo(dir);
 
     const remote = await git("remote", "get-url", "origin");
     if (remote.ok) {
@@ -165,27 +334,34 @@ async function getRepoInfo(dir: string, doFetch: boolean): Promise<RepoInfo> {
     return info;
 }
 
-/**
- * execFile refuses to launch .cmd/.bat shims without a shell, and pnpm is a .cmd on
- * Windows. Vet the command and quote it so a shell can be used safely.
- */
-function prepareShellCommand(command: string) {
-    const cmd = command.trim() || "pnpm";
-    if (UNSAFE_SHELL_CHARS.test(cmd)) return null;
-    return isWindows && cmd.includes(" ") ? `"${cmd}"` : cmd;
-}
-
 export function getVencordDir(_: IpcEvent): string {
     return VENCORD_SRC_DIR;
 }
 
+export function getTools(_: IpcEvent, nodeCommand: string, pnpmCommand: string): Promise<Tools> {
+    cachedGit = undefined; // an explicit tool check should re-look, not trust the cache
+    return resolveTools(nodeCommand, pnpmCommand);
+}
+
 export async function scanRepos(_: IpcEvent, doFetch: boolean): Promise<RepoInfo[]> {
     const dirs = await findRepoDirs();
-    const infos = await Promise.all(dirs.map(dir => getRepoInfo(dir, doFetch)));
+    const git = await getGit();
+
+    if (!git) {
+        return dirs.map(dir => ({
+            ...emptyRepoInfo(dir),
+            error: "git could not be found. Set an absolute path in this plugin's settings."
+        }));
+    }
+
+    const infos = await Promise.all(dirs.map(dir => getRepoInfo(git, dir, doFetch)));
     return infos.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function pullRepo(_: IpcEvent, id: string, mode: PullMode): Promise<CommandResult> {
+    const git = await getGit();
+    if (!git) return { ok: false, stdout: "", stderr: "git could not be found" };
+
     const dir = await resolveRepoId(id);
     if (!dir) return { ok: false, stdout: "", stderr: `Unknown repository: ${id}` };
 
@@ -194,41 +370,34 @@ export async function pullRepo(_: IpcEvent, id: string, mode: PullMode): Promise
     else if (mode === "merge") args.push("--no-rebase");
     else args.push("--ff-only");
 
-    return tryRun("git", args, { cwd: dir });
+    return runTool(git, args, { cwd: dir });
 }
 
-export async function installDeps(_: IpcEvent, pnpmCommand: string): Promise<CommandResult> {
-    const cmd = prepareShellCommand(pnpmCommand);
-    if (!cmd) return { ok: false, stdout: "", stderr: `Refusing to run unsafe pnpm command: ${pnpmCommand}` };
+export async function installDeps(_: IpcEvent, nodeCommand: string, pnpmCommand: string): Promise<CommandResult> {
+    const { pnpm } = await resolveTools(nodeCommand, pnpmCommand);
+    if (!pnpm) return { ok: false, stdout: "", stderr: "pnpm could not be found" };
 
-    return tryRun(cmd, ["install", "--frozen-lockfile"], { cwd: VENCORD_SRC_DIR, shell: isWindows });
+    return runTool(pnpm, ["install", "--frozen-lockfile"], { cwd: VENCORD_SRC_DIR });
 }
 
-export async function buildVencord(_: IpcEvent): Promise<CommandResult> {
+export async function buildVencord(_: IpcEvent, nodeCommand: string): Promise<CommandResult> {
+    const node = await resolveTool("node", nodeCommand, nodeCandidates());
+    if (!node) {
+        return {
+            ok: false,
+            stdout: "",
+            stderr: "node could not be found. Discord only sees the system PATH, so shell-managed "
+                + "installs (fnm, mise, asdf) may be invisible to it. Set an absolute path to node "
+                + "in this plugin's settings."
+        };
+    }
+
     const args = ["scripts/build/build.mjs"];
     if (IS_DEV) args.push("--dev");
 
-    const res = await tryRun("node", args, { cwd: VENCORD_SRC_DIR });
+    const res = await runTool(node, args, { cwd: VENCORD_SRC_DIR });
     // build.mjs can report a failure without a non-zero exit code
     if (res.ok && res.stderr.includes("Build failed")) return { ...res, ok: false };
 
     return res;
-}
-
-export async function getToolVersions(_: IpcEvent, pnpmCommand: string): Promise<ToolVersions> {
-    const pnpmCmd = prepareShellCommand(pnpmCommand);
-
-    const [git, node, pnpm] = await Promise.all([
-        tryRun("git", ["--version"], { cwd: VENCORD_SRC_DIR }),
-        tryRun("node", ["--version"], { cwd: VENCORD_SRC_DIR }),
-        pnpmCmd
-            ? tryRun(pnpmCmd, ["--version"], { cwd: VENCORD_SRC_DIR, shell: isWindows })
-            : Promise.resolve({ ok: false, stdout: "", stderr: "" } as CommandResult)
-    ]);
-
-    return {
-        git: git.ok ? git.stdout.trim() : null,
-        node: node.ok ? node.stdout.trim() : null,
-        pnpm: pnpm.ok ? pnpm.stdout.trim() : null
-    };
 }

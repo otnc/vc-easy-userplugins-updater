@@ -17,24 +17,26 @@ import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { relaunch } from "@utils/native";
-import { useAwaiter } from "@utils/react";
 import { ConfirmModal, openModal, Toasts, useEffect, useState } from "@webpack/common";
 
 import { settings } from "./settings";
-import type { RepoInfo } from "./types";
+import type { RepoInfo, ToolName, Tools } from "./types";
 import {
     checkForUpdates,
     getOutdated,
-    getToolVersions,
+    getTools,
     lastCheckedAt,
     lastError,
     repos,
+    runRebuild,
     runUpdate,
     subscribe,
     UpdaterLogger
 } from "./updater";
 
 const cl = (className: string) => `vc-upu-${className}`;
+
+const TOOL_NAMES: ToolName[] = ["git", "node", "pnpm"];
 
 function toast(message: string, type: string = Toasts.Type.MESSAGE) {
     Toasts.show({
@@ -120,38 +122,77 @@ function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onU
     );
 }
 
-function Diagnostics() {
-    const [versions] = useAwaiter(getToolVersions, {
-        fallbackValue: null,
-        onError: e => UpdaterLogger.error("Failed to read tool versions", e)
-    });
+/**
+ * Discord inherits only the persistent system PATH. Version managers that set PATH from a
+ * shell hook - fnm, mise, asdf, nvm.sh - are therefore invisible to it, which is a confusing
+ * failure to hit when the exact same command works in a terminal. Always show what was
+ * actually resolved so the cause is obvious.
+ */
+function Toolchain({ nonce }: { nonce: number; }) {
+    const [tools, setTools] = useState<Tools | null>(null);
 
-    if (!versions) return null;
+    useEffect(() => {
+        let cancelled = false;
 
-    const missing = Object.entries(versions).filter(([, v]) => v == null).map(([name]) => name);
-    if (missing.length === 0) return null;
+        getTools()
+            .then(resolved => { if (!cancelled) setTools(resolved); })
+            .catch(e => UpdaterLogger.error("Failed to resolve the toolchain", e));
+
+        return () => { cancelled = true; };
+    }, [nonce]);
+
+    if (!tools) return null;
+
+    const missing = TOOL_NAMES.filter(name => !tools[name]);
+    // pnpm is optional: the install step is skipped without it, the build still runs
+    const blocking = missing.filter(name => name !== "pnpm");
 
     return (
-        <ErrorCard className={Margins.bottom16}>
-            <Paragraph>
-                Not runnable from Discord's environment: <b>{missing.join(", ")}</b>.
-                {missing.includes("pnpm") && " Set an absolute path in this plugin's 'pnpmCommand' setting, or turn off 'Run pnpm install'."}
+        <>
+            {blocking.length > 0 && (
+                <ErrorCard className={Margins.bottom16}>
+                    <Paragraph>
+                        <b>{blocking.join(" and ")}</b> could not be found. Discord only inherits the
+                        system PATH, so a version manager that sets PATH from a shell hook — fnm, mise,
+                        asdf, nvm.sh — stays invisible to it even though it works in a terminal.
+                        Set an absolute path in this plugin's settings.
+                    </Paragraph>
+                </ErrorCard>
+            )}
+
+            {missing.includes("pnpm") && (
+                <Card variant="warning" className={Margins.bottom16}>
+                    <Paragraph>
+                        pnpm could not be found, so the install step will be skipped. That is harmless
+                        unless a Vencord dependency changed — the build will say so if it matters.
+                    </Paragraph>
+                </Card>
+            )}
+
+            <Paragraph className={cl("toolchain")}>
+                {TOOL_NAMES.map(name => {
+                    const tool = tools[name];
+                    return `${name}: ${tool ? `${tool.version ?? "found"} — ${tool.source}` : "not found"}`;
+                }).join("\n")}
             </Paragraph>
-        </ErrorCard>
+        </>
     );
 }
 
 function UserpluginUpdater() {
-    const { checkOnStartup, notifyOnUpdatesFound, runInstall } =
-        settings.use(["checkOnStartup", "notifyOnUpdatesFound", "runInstall"]);
+    const { checkOnStartup, notifyOnUpdatesFound, runInstall, pendingRebuild } =
+        settings.use(["checkOnStartup", "notifyOnUpdatesFound", "runInstall", "pendingRebuild"]);
 
     const [list, setList] = useState<RepoInfo[]>(repos);
     const [error, setError] = useState<string | null>(lastError);
     const [isChecking, setIsChecking] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
     const [log, setLog] = useState<string[]>([]);
+    const [toolNonce, setToolNonce] = useState(0);
 
     useEffect(() => subscribe(() => setList([...repos])), []);
+
+    const appendLog = (line: string) => setLog(prev => [...prev, line]);
 
     async function check(doFetch: boolean, quiet = false) {
         setIsChecking(true);
@@ -177,6 +218,9 @@ function UserpluginUpdater() {
         if (lastCheckedAt === null) void check(false, true);
     }, []);
 
+    /** Re-probes the toolchain, so fixing a PATH problem shows up without reopening the tab. */
+    const refreshTools = () => setToolNonce(nonce => nonce + 1);
+
     async function update(targets: RepoInfo[]) {
         if (targets.length === 0) return;
 
@@ -184,15 +228,32 @@ function UserpluginUpdater() {
         setLog([]);
 
         try {
-            const result = await runUpdate(targets, line => setLog(prev => [...prev, line]));
+            const result = await runUpdate(targets, appendLog);
 
             if (result.built) promptRestart();
             else if (result.failed.length > 0) toast("Some repositories could not be updated", Toasts.Type.FAILURE);
         } catch (e: any) {
             UpdaterLogger.error("Update failed", e);
-            setLog(prev => [...prev, `error: ${e?.message ?? e}`]);
+            appendLog(`error: ${e?.message ?? e}`);
         } finally {
             setIsUpdating(false);
+            refreshTools();
+        }
+    }
+
+    async function rebuild() {
+        setIsUpdating(true);
+        setLog([]);
+
+        try {
+            if (await runRebuild(appendLog)) promptRestart();
+            else toast("Rebuild failed, see the log", Toasts.Type.FAILURE);
+        } catch (e: any) {
+            UpdaterLogger.error("Rebuild failed", e);
+            appendLog(`error: ${e?.message ?? e}`);
+        } finally {
+            setIsUpdating(false);
+            refreshTools();
         }
     }
 
@@ -211,7 +272,17 @@ function UserpluginUpdater() {
                 </Paragraph>
             </Card>
 
-            <Diagnostics />
+            {pendingRebuild && (
+                <Card variant="warning" className={Margins.bottom16}>
+                    <HeadingSecondary>Rebuild pending</HeadingSecondary>
+                    <Paragraph>
+                        Repositories have been pulled but Vencord has not been rebuilt since. The updated
+                        plugin code will not load until it is.
+                    </Paragraph>
+                </Card>
+            )}
+
+            <Toolchain nonce={toolNonce} />
 
             <FormSwitch
                 title="Check on startup"
@@ -228,7 +299,7 @@ function UserpluginUpdater() {
             />
             <FormSwitch
                 title="Run pnpm install before building"
-                description="Runs 'pnpm install --frozen-lockfile'. Turn off if your dependencies never change"
+                description="Runs 'pnpm install --frozen-lockfile'. Skipped automatically if pnpm cannot be found"
                 value={runInstall}
                 onChange={v => settings.store.runInstall = v}
             />
@@ -244,7 +315,19 @@ function UserpluginUpdater() {
                     disabled={busy || outdated.length === 0}
                     onClick={() => update(outdated)}
                 >
-                    {isUpdating ? "Updating…" : `Update All${outdated.length ? ` (${outdated.length})` : ""}`}
+                    {isUpdating ? "Working…" : `Update All${outdated.length ? ` (${outdated.length})` : ""}`}
+                </Button>
+                {/*
+                  * Always available, not just after a failure: once a pull has landed there is
+                  * no outdated repository left for "Update All" to act on, so this is the only
+                  * way back to the build step.
+                  */}
+                <Button
+                    variant={pendingRebuild ? "primary" : "secondary"}
+                    disabled={busy}
+                    onClick={rebuild}
+                >
+                    Rebuild Vencord
                 </Button>
             </Flex>
 

@@ -34,9 +34,24 @@ export const settings = definePluginSettings({
             { label: "Rebase", value: "rebase" }
         ] as { label: string; value: PullMode; default?: boolean; }[]
     },
+    nodeCommand: {
+        type: OptionType.STRING,
+        default: "",
+        description: "Absolute path to node. Leave empty to auto-detect (PATH, fnm, Volta, nvm, system)"
+    },
     pnpmCommand: {
         type: OptionType.STRING,
-        default: "pnpm",
-        description: "Command used to run pnpm. Set an absolute path if pnpm is not on your PATH"
+        default: "",
+        description: "Absolute path to pnpm. Leave empty to auto-detect (PATH, corepack shim, standalone)"
+    },
+
+    /**
+     * Set as soon as a pull succeeds and cleared once a build succeeds. Without it, a failed
+     * install or build would leave the repositories up to date with no visible work left to
+     * do, and no way to reach the build step from the UI again.
+     */
+    pendingRebuild: {
+        type: OptionType.CUSTOM,
+        default: false
     }
 });

@@ -51,8 +51,18 @@ export interface CommandResult {
     stderr: string;
 }
 
-export interface ToolVersions {
-    git: string | null;
-    node: string | null;
-    pnpm: string | null;
+export type ToolName = "git" | "node" | "pnpm";
+
+export interface ResolvedTool {
+    /** Absolute path when the tool was found on disk, otherwise the bare command name. */
+    command: string;
+    /** Prefix arguments, e.g. `["exec", "--using=default", "--", "node"]` when going through fnm. */
+    args: string[];
+    /** Whether the command has to go through a shell. True for Windows `.cmd`/`.bat` shims. */
+    shell: boolean;
+    version: string | null;
+    /** Where it was found. Shown in the diagnostics panel so failures are debuggable. */
+    source: string;
 }
+
+export type Tools = Record<ToolName, ResolvedTool | null>;
