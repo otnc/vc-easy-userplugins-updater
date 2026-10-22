@@ -32,7 +32,7 @@ export const settings = definePluginSettings({
       { label: "Fast-forward only (safest)", value: "ff-only", default: true },
       { label: "Merge", value: "merge" },
       { label: "Rebase", value: "rebase" }
-    ] as { label: string; value: PullMode; default?: boolean; }[]
+    ] as { label: string; value: PullMode; default?: boolean }[]
   },
   nodeCommand: {
     type: OptionType.STRING,

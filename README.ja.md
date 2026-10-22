@@ -71,6 +71,7 @@ Discord の設定の Vencord セクションに **Userplugins** という項目�
 ```sh
 pnpm install     # installs @vencord/types and friends, nothing else
 pnpm typecheck   # tsc --noEmit
+pnpm format      # prettier --write . (Markdown is excluded)
 ```
 
 `tsconfig.json` は Vencord の各エイリアスを 2 回ずつ定義しています。1 つ目がツリー内の相対パス、2 つ目が `@vencord/types` 内のコピーで、TypeScript も esbuild もディスク上に存在する最初のエントリを使います。そのため、この 1 ファイルで両方の状況に対応できます。

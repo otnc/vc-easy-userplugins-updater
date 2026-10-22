@@ -41,7 +41,11 @@ const TOOL_NAMES: ToolName[] = ["git", "node", "pnpm"];
 type ToastVariant = "default" | "success" | "critical";
 
 // Vencord replaced the Toasts helper with an object-taking showToast, but @vencord/types (1.15.1) still declares the old positional signature.
-const showToastCompat = showToast as unknown as (data: { text: string; variant?: ToastVariant; position?: "top" | "bottom"; }) => void;
+const showToastCompat = showToast as unknown as (data: {
+  text: string;
+  variant?: ToastVariant;
+  position?: "top" | "bottom";
+}) => void;
 
 function toast(text: string, variant: ToastVariant = "default") {
   showToastCompat({ text, variant, position: "bottom" });
@@ -61,24 +65,22 @@ function promptRestart() {
   ));
 }
 
-function CommitList({ repo }: { repo: RepoInfo; }) {
+function CommitList({ repo }: { repo: RepoInfo }) {
   return (
     <Card className={cl("commits")} defaultPadding={false}>
       {repo.commits.map(({ hash, author, message }) => (
         <div key={hash} className={cl("commit")}>
-          <code>
-            {repo.remoteUrl
-              ? <Link href={`${repo.remoteUrl}/commit/${hash}`}>{hash}</Link>
-              : hash}
-          </code>
-          <span className={cl("commit-message")}>{message} — {author}</span>
+          <code>{repo.remoteUrl ? <Link href={`${repo.remoteUrl}/commit/${hash}`}>{hash}</Link> : hash}</code>
+          <span className={cl("commit-message")}>
+            {message} — {author}
+          </span>
         </div>
       ))}
     </Card>
   );
 }
 
-function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onUpdate(): void; }) {
+function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onUpdate(): void }) {
   const isOutdated = repo.behind > 0;
 
   return (
@@ -92,9 +94,7 @@ function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onU
             {repo.branch ?? "unknown branch"}
             {repo.upstream && ` → ${repo.upstream}`}
             {" · "}
-            {isOutdated
-              ? `${repo.behind} commit${repo.behind === 1 ? "" : "s"} behind`
-              : "up to date"}
+            {isOutdated ? `${repo.behind} commit${repo.behind === 1 ? "" : "s"} behind` : "up to date"}
             {repo.ahead > 0 && ` · ${repo.ahead} local commit${repo.ahead === 1 ? "" : "s"}`}
             {repo.dirty && " · uncommitted changes"}
           </Paragraph>
@@ -107,9 +107,7 @@ function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onU
         )}
       </Flex>
 
-      {repo.error && (
-        <Paragraph className={classes(cl("repo-error"), Margins.top8)}>{repo.error}</Paragraph>
-      )}
+      {repo.error && <Paragraph className={classes(cl("repo-error"), Margins.top8)}>{repo.error}</Paragraph>}
 
       {repo.dirty && isOutdated && (
         <Paragraph className={classes(cl("repo-error"), Margins.top8)}>
@@ -125,17 +123,21 @@ function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onU
 /**
  * Discord inherits only the persistent system PATH. Version managers that set PATH from a shell hook - fnm, mise, asdf, nvm.sh - are therefore invisible to it, which is a confusing failure to hit when the exact same command works in a terminal. Always show what was actually resolved so the cause is obvious.
  */
-function Toolchain({ nonce }: { nonce: number; }) {
+function Toolchain({ nonce }: { nonce: number }) {
   const [tools, setTools] = useState<Tools | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     getTools()
-      .then(resolved => { if (!cancelled) setTools(resolved); })
+      .then(resolved => {
+        if (!cancelled) setTools(resolved);
+      })
       .catch(e => UpdaterLogger.error("Failed to resolve the toolchain", e));
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [nonce]);
 
   if (!tools) return null;
@@ -149,10 +151,9 @@ function Toolchain({ nonce }: { nonce: number; }) {
       {blocking.length > 0 && (
         <ErrorCard className={Margins.bottom16}>
           <Paragraph>
-            <b>{blocking.join(" and ")}</b> could not be found. Discord only inherits the
-            system PATH, so a version manager that sets PATH from a shell hook — fnm, mise,
-            asdf, nvm.sh — stays invisible to it even though it works in a terminal.
-            Set an absolute path in this plugin's settings.
+            <b>{blocking.join(" and ")}</b> could not be found. Discord only inherits the system PATH, so a version
+            manager that sets PATH from a shell hook — fnm, mise, asdf, nvm.sh — stays invisible to it even though it
+            works in a terminal. Set an absolute path in this plugin's settings.
           </Paragraph>
         </ErrorCard>
       )}
@@ -160,8 +161,8 @@ function Toolchain({ nonce }: { nonce: number; }) {
       {missing.includes("pnpm") && (
         <Card variant="warning" className={Margins.bottom16}>
           <Paragraph>
-            pnpm could not be found, so the install step will be skipped. That is harmless
-            unless a Vencord dependency changed — the build will say so if it matters.
+            pnpm could not be found, so the install step will be skipped. That is harmless unless a Vencord dependency
+            changed — the build will say so if it matters.
           </Paragraph>
         </Card>
       )}
@@ -177,8 +178,12 @@ function Toolchain({ nonce }: { nonce: number; }) {
 }
 
 function UserpluginUpdater() {
-  const { checkOnStartup, notifyOnUpdatesFound, runInstall, pendingRebuild } =
-    settings.use(["checkOnStartup", "notifyOnUpdatesFound", "runInstall", "pendingRebuild"]);
+  const { checkOnStartup, notifyOnUpdatesFound, runInstall, pendingRebuild } = settings.use([
+    "checkOnStartup",
+    "notifyOnUpdatesFound",
+    "runInstall",
+    "pendingRebuild"
+  ]);
 
   const [list, setList] = useState<RepoInfo[]>(repos);
   const [error, setError] = useState<string | null>(lastError);
@@ -199,9 +204,11 @@ function UserpluginUpdater() {
 
       if (!quiet) {
         const outdated = getOutdated(next);
-        toast(outdated.length
-          ? `${outdated.length} userplugin${outdated.length === 1 ? " has" : "s have"} updates`
-          : "All userplugins are up to date");
+        toast(
+          outdated.length
+            ? `${outdated.length} userplugin${outdated.length === 1 ? " has" : "s have"} updates`
+            : "All userplugins are up to date"
+        );
       }
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -262,10 +269,9 @@ function UserpluginUpdater() {
       <Card variant="info" className={Margins.bottom20}>
         <HeadingSecondary>How this works</HeadingSecondary>
         <Paragraph>
-          Every git repository under <code>src/userplugins</code> is pulled, then Vencord is
-          rebuilt with <code>node scripts/build/build.mjs</code>. A restart is needed afterwards
-          for the new code to load. <code>pnpm inject</code> is not re-run — it only needs to
-          happen once per install.
+          Every git repository under <code>src/userplugins</code> is pulled, then Vencord is rebuilt with{" "}
+          <code>node scripts/build/build.mjs</code>. A restart is needed afterwards for the new code to load.{" "}
+          <code>pnpm inject</code> is not re-run — it only needs to happen once per install.
         </Paragraph>
       </Card>
 
@@ -273,8 +279,8 @@ function UserpluginUpdater() {
         <Card variant="warning" className={Margins.bottom16}>
           <HeadingSecondary>Rebuild pending</HeadingSecondary>
           <Paragraph>
-            Repositories have been pulled but Vencord has not been rebuilt since. The updated
-            plugin code will not load until it is.
+            Repositories have been pulled but Vencord has not been rebuilt since. The updated plugin code will not load
+            until it is.
           </Paragraph>
         </Card>
       )}
@@ -285,20 +291,20 @@ function UserpluginUpdater() {
         title="Check on startup"
         description="Fetch every userplugin repository when Discord starts"
         value={checkOnStartup}
-        onChange={v => settings.store.checkOnStartup = v}
+        onChange={v => (settings.store.checkOnStartup = v)}
       />
       <FormSwitch
         title="Notify when updates are found"
         description="Show a notification after the startup check"
         value={notifyOnUpdatesFound}
-        onChange={v => settings.store.notifyOnUpdatesFound = v}
+        onChange={v => (settings.store.notifyOnUpdatesFound = v)}
         disabled={!checkOnStartup}
       />
       <FormSwitch
         title="Run pnpm install before building"
         description="Runs 'pnpm install --frozen-lockfile'. Skipped automatically if pnpm cannot be found"
         value={runInstall}
-        onChange={v => settings.store.runInstall = v}
+        onChange={v => (settings.store.runInstall = v)}
       />
 
       <Divider className={classes(Margins.top16, Margins.bottom16)} />
@@ -307,21 +313,13 @@ function UserpluginUpdater() {
         <Button disabled={busy} onClick={() => check(true)}>
           {isChecking ? "Checking…" : "Check for Updates"}
         </Button>
-        <Button
-          variant="primary"
-          disabled={busy || outdated.length === 0}
-          onClick={() => update(outdated)}
-        >
+        <Button variant="primary" disabled={busy || outdated.length === 0} onClick={() => update(outdated)}>
           {isUpdating ? "Working…" : `Update All${outdated.length ? ` (${outdated.length})` : ""}`}
         </Button>
         {/*
-          * Always available, not just after a failure: once a pull has landed there is no outdated repository left for "Update All" to act on, so this is the only way back to the build step.
-          */}
-        <Button
-          variant={pendingRebuild ? "primary" : "secondary"}
-          disabled={busy}
-          onClick={rebuild}
-        >
+         * Always available, not just after a failure: once a pull has landed there is no outdated repository left for "Update All" to act on, so this is the only way back to the build step.
+         */}
+        <Button variant={pendingRebuild ? "primary" : "secondary"} disabled={busy} onClick={rebuild}>
           Rebuild Vencord
         </Button>
       </Flex>
@@ -334,27 +332,22 @@ function UserpluginUpdater() {
 
       {log.length > 0 && (
         <Card className={classes(cl("log"), Margins.bottom16)}>
-          {log.map((line, i) => <div key={i}>{line}</div>)}
+          {log.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
         </Card>
       )}
 
       <Heading tag="h5">Repositories</Heading>
 
-      {list.length === 0
-        ? (
-          <Paragraph>
-            No git repositories found under <code>src/userplugins</code>. Plugins copied in as
-            plain files cannot be updated automatically.
-          </Paragraph>
-        )
-        : list.map(repo => (
-          <RepoCard
-            key={repo.id}
-            repo={repo}
-            busy={busy}
-            onUpdate={() => update([repo])}
-          />
-        ))}
+      {list.length === 0 ? (
+        <Paragraph>
+          No git repositories found under <code>src/userplugins</code>. Plugins copied in as plain files cannot be
+          updated automatically.
+        </Paragraph>
+      ) : (
+        list.map(repo => <RepoCard key={repo.id} repo={repo} busy={busy} onUpdate={() => update([repo])} />)
+      )}
     </SettingsTab>
   );
 }

@@ -82,9 +82,7 @@ function fnmDefaultBinDirs() {
   }
 
   // Windows installs put the binaries straight into the install dir, unix uses bin/
-  return roots.map(root => isWindows
-    ? join(root, "aliases", "default")
-    : join(root, "aliases", "default", "bin"));
+  return roots.map(root => (isWindows ? join(root, "aliases", "default") : join(root, "aliases", "default", "bin")));
 }
 
 function nodeCandidates() {
@@ -118,11 +116,7 @@ function pnpmCandidates(nodeDir: string | null) {
   if (isWindows) {
     if (LOCALAPPDATA) out.push(join(LOCALAPPDATA, "pnpm", "pnpm.exe"));
   } else {
-    out.push(
-      join(HOME, ".local", "share", "pnpm", "pnpm"),
-      "/usr/local/bin/pnpm",
-      "/opt/homebrew/bin/pnpm"
-    );
+    out.push(join(HOME, ".local", "share", "pnpm", "pnpm"), "/usr/local/bin/pnpm", "/opt/homebrew/bin/pnpm");
   }
 
   return out;
@@ -214,7 +208,10 @@ async function getGit() {
 
 // #endregion
 
-const gitIn = (git: ResolvedTool, cwd: string) => (...args: string[]) => runTool(git, args, { cwd });
+const gitIn =
+  (git: ResolvedTool, cwd: string) =>
+  (...args: string[]) =>
+    runTool(git, args, { cwd });
 
 function toId(dir: string) {
   return relative(VENCORD_SRC_DIR, dir).split(sep).join("/");
@@ -277,7 +274,8 @@ async function getRepoInfo(gitTool: ResolvedTool, dir: string, doFetch: boolean)
 
   const remote = await git("remote", "get-url", "origin");
   if (remote.ok) {
-    info.remoteUrl = remote.stdout.trim()
+    info.remoteUrl = remote.stdout
+      .trim()
       .replace(/^git@(.+?):/, "https://$1/")
       .replace(/\.git$/, "");
   }
@@ -315,10 +313,14 @@ async function getRepoInfo(gitTool: ResolvedTool, dir: string, doFetch: boolean)
     // \x1f as separator so commit messages containing slashes survive intact
     const log = await git("log", `HEAD..${info.upstream}`, "--pretty=format:%h%x1f%an%x1f%s");
     if (log.ok) {
-      info.commits = log.stdout.trim().split("\n").filter(Boolean).map(line => {
-        const [hash, author, message] = line.split("\x1f");
-        return { hash, author, message } as CommitInfo;
-      });
+      info.commits = log.stdout
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(line => {
+          const [hash, author, message] = line.split("\x1f");
+          return { hash, author, message } as CommitInfo;
+        });
     }
   }
 
@@ -377,9 +379,10 @@ export async function buildVencord(_: IpcEvent, nodeCommand: string): Promise<Co
     return {
       ok: false,
       stdout: "",
-      stderr: "node could not be found. Discord only sees the system PATH, so shell-managed "
-        + "installs (fnm, mise, asdf) may be invisible to it. Set an absolute path to node "
-        + "in this plugin's settings."
+      stderr:
+        "node could not be found. Discord only sees the system PATH, so shell-managed " +
+        "installs (fnm, mise, asdf) may be invisible to it. Set an absolute path to node " +
+        "in this plugin's settings."
     };
   }
 

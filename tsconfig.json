@@ -14,14 +14,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "allowJs": true,
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "esnext",
-      "esnext.array",
-      "esnext.asynciterable",
-      "esnext.symbol"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "esnext", "esnext.array", "esnext.asynciterable", "esnext.symbol"],
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
@@ -52,11 +45,7 @@
   },
 
   // The @vencord/types entry point carries the global declarations (VencordNative, IS_WEB, definePlugin's ambient types, ...). In a Vencord checkout it is simply absent and the globals come from Vencord's own sources instead; a non-matching include is not an error.
-  "include": [
-    "*.ts",
-    "*.tsx",
-    "./node_modules/@vencord/types/index.d.ts"
-  ],
+  "include": ["*.ts", "*.tsx", "./node_modules/@vencord/types/index.d.ts"],
 
   // TypeScript excludes node_modules by default, which would drop the include entry above.
   "exclude": []

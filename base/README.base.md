@@ -134,6 +134,7 @@ Discord の設定の Vencord セクションに **Userplugins** という項目�
 ```sh
 pnpm install     # installs @vencord/types and friends, nothing else
 pnpm typecheck   # tsc --noEmit
+pnpm format      # prettier --write . (Markdown is excluded)
 ```
 
 :::kiritan{locale=en}

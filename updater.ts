@@ -21,14 +21,18 @@ export function getNative(): Native {
   if (IS_WEB) throw new Error("This plugin only works in the desktop app, since it needs to run git and node.");
 
   const native = (VencordNative.pluginHelpers as Record<string, any>)?.UserpluginUpdater;
-  if (!native) throw new Error("Native module not found. Rebuild Vencord once by hand ('pnpm build'), then restart Discord.");
+  if (!native)
+    throw new Error("Native module not found. Rebuild Vencord once by hand ('pnpm build'), then restart Discord.");
 
   return native as Native;
 }
 
 /** Trims a command's output down to something that fits in the UI. */
 export function firstLines(text: string, count = 4) {
-  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  const lines = text
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
   return lines.slice(0, count).join("\n") || "unknown error";
 }
 
@@ -36,7 +40,10 @@ export function firstLines(text: string, count = 4) {
  * esbuild writes its bundle size report to stderr before any error, so the first lines of a failed build are just noise. Start from the first error marker instead.
  */
 export function buildErrorLines(text: string, count = 8) {
-  const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+  const lines = text
+    .split("\n")
+    .map(line => line.trim())
+    .filter(Boolean);
   const start = lines.findIndex(line => /\[ERROR\]|✘|Build failed|^error/i.test(line));
 
   if (start === -1) return lines.slice(-count).join("\n") || "unknown error";
@@ -165,14 +172,14 @@ export async function runUpdate(targets: RepoInfo[], log: (line: string) => void
 
   if (result.pulled.length === 0 && !isRebuildPending()) {
     log("Nothing was pulled, skipping the rebuild.");
-    await checkForUpdates(false).catch(() => { });
+    await checkForUpdates(false).catch(() => {});
     return result;
   }
 
   result.built = await runRebuild(log);
   result.ok = result.built && result.failed.length === 0;
 
-  await checkForUpdates(false).catch(() => { });
+  await checkForUpdates(false).catch(() => {});
 
   return result;
 }

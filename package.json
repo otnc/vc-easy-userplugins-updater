@@ -6,7 +6,9 @@
   "private": true,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "readme": "kiritan build"
+    "readme": "kiritan build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@types/node": "^26.0.1",
@@ -14,6 +16,7 @@
     "@types/react-dom": "19.1.0",
     "@vencord/types": "^1.14.15",
     "kiritan": "^0.6.1",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3"
   }
 }

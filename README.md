@@ -71,6 +71,7 @@ Userplugins are normally written inside a Vencord checkout, where every `@utils/
 ```sh
 pnpm install     # installs @vencord/types and friends, nothing else
 pnpm typecheck   # tsc --noEmit
+pnpm format      # prettier --write . (Markdown is excluded)
 ```
 
 `tsconfig.json` lists each Vencord alias twice — the in-tree relative path first, the `@vencord/types` copy second — and both TypeScript and esbuild take the first entry that exists on disk. That single file therefore covers both situations:
