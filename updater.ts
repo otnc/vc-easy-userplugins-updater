@@ -33,6 +33,18 @@ export function firstLines(text: string, count = 4) {
     return lines.slice(0, count).join("\n") || "unknown error";
 }
 
+/**
+ * esbuild writes its bundle size report to stderr before any error, so the first lines of
+ * a failed build are just noise. Start from the first error marker instead.
+ */
+export function buildErrorLines(text: string, count = 8) {
+    const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
+    const start = lines.findIndex(line => /\[ERROR\]|✘|Build failed|^error/i.test(line));
+
+    if (start === -1) return lines.slice(-count).join("\n") || "unknown error";
+    return lines.slice(start, start + count).join("\n");
+}
+
 // --- shared state, so the settings tab and the startup check agree on what they saw ---
 
 export let repos: RepoInfo[] = [];
@@ -117,7 +129,7 @@ export async function runRebuild(log: (line: string) => void): Promise<boolean> 
     const build = await native.buildVencord(nodeCommand);
 
     if (!build.ok) {
-        log(`  build failed: ${firstLines(build.stderr)}`);
+        log(`  build failed: ${buildErrorLines(build.stderr)}`);
         return false;
     }
 

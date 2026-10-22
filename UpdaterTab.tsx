@@ -17,7 +17,7 @@ import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
 import { Margins } from "@utils/margins";
 import { classes } from "@utils/misc";
 import { relaunch } from "@utils/native";
-import { ConfirmModal, openModal, Toasts, useEffect, useState } from "@webpack/common";
+import { ConfirmModal, openModal, showToast, useEffect, useState } from "@webpack/common";
 
 import { settings } from "./settings";
 import type { RepoInfo, ToolName, Tools } from "./types";
@@ -38,13 +38,14 @@ const cl = (className: string) => `vc-upu-${className}`;
 
 const TOOL_NAMES: ToolName[] = ["git", "node", "pnpm"];
 
-function toast(message: string, type: string = Toasts.Type.MESSAGE) {
-    Toasts.show({
-        message,
-        type,
-        id: Toasts.genId(),
-        options: { position: Toasts.Position.BOTTOM }
-    });
+type ToastVariant = "default" | "success" | "critical";
+
+// Vencord replaced the Toasts helper with an object-taking showToast, but @vencord/types
+// (1.15.1) still declares the old positional signature.
+const showToastCompat = showToast as unknown as (data: { text: string; variant?: ToastVariant; position?: "top" | "bottom"; }) => void;
+
+function toast(text: string, variant: ToastVariant = "default") {
+    showToastCompat({ text, variant, position: "bottom" });
 }
 
 function promptRestart() {
@@ -231,7 +232,7 @@ function UserpluginUpdater() {
             const result = await runUpdate(targets, appendLog);
 
             if (result.built) promptRestart();
-            else if (result.failed.length > 0) toast("Some repositories could not be updated", Toasts.Type.FAILURE);
+            else if (result.failed.length > 0) toast("Some repositories could not be updated", "critical");
         } catch (e: any) {
             UpdaterLogger.error("Update failed", e);
             appendLog(`error: ${e?.message ?? e}`);
@@ -247,7 +248,7 @@ function UserpluginUpdater() {
 
         try {
             if (await runRebuild(appendLog)) promptRestart();
-            else toast("Rebuild failed, see the log", Toasts.Type.FAILURE);
+            else toast("Rebuild failed, see the log", "critical");
         } catch (e: any) {
             UpdaterLogger.error("Rebuild failed", e);
             appendLog(`error: ${e?.message ?? e}`);
