@@ -1,63 +1,63 @@
 {
-    // This file has to serve two masters.
-    //
-    // 1. Your editor, while the repository sits on its own somewhere outside Vencord.
-    //    Nothing resolves relative to a Vencord checkout here, so the aliases fall through to the `@vencord/types` package installed by `pnpm install`.
-    //
-    // 2. esbuild, once the repository has been cloned into `<vencord>/src/userplugins/`.
-    //    esbuild reads the *nearest* tsconfig.json to each source file and its `paths` replace the root config's wholesale, so every alias Vencord defines has to berepeated here or the Vencord build fails to resolve them.
-    //
-    // Both are covered by listing the in-tree path first: TypeScript and esbuild each try the entries in order and take the first one that exists on disk.
-    "compilerOptions": {
-        "resolveJsonModule": true,
-        "allowSyntheticDefaultImports": true,
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "allowJs": true,
-        "lib": [
-            "DOM",
-            "DOM.Iterable",
-            "esnext",
-            "esnext.array",
-            "esnext.asynciterable",
-            "esnext.symbol"
-        ],
-        "module": "esnext",
-        "moduleResolution": "bundler",
-        "strict": true,
-        "noImplicitAny": false,
-        "target": "ESNEXT",
-        "jsx": "preserve",
-        "noEmit": true,
-
-        // native.ts is Node code and the UI is React. Listed explicitly because the in-tree case has no node_modules here for TypeScript to discover them from.
-        "types": ["node", "react", "react-dom"],
-
-        // No baseUrl: it is deprecated in TypeScript 6, and both TypeScript and esbuild resolve relative `paths` against this file's directory when it is absent.
-        "paths": {
-            "@api/*": ["../../api/*", "./node_modules/@vencord/types/api/*"],
-            "@components/*": ["../../components/*", "./node_modules/@vencord/types/components/*"],
-            "@main/*": ["../../main/*"],
-            "@debug/*": ["../../debug/*"],
-            "@utils/*": ["../../utils/*", "./node_modules/@vencord/types/utils/*"],
-            "@plugins/*": ["../../plugins/*", "./node_modules/@vencord/types/plugins/*"],
-            "@shared/*": ["../../shared/*", "./node_modules/@vencord/types/shared/*"],
-            "@webpack/common": ["../../webpack/common", "./node_modules/@vencord/types/webpack/common"],
-            "@webpack/common/*": ["../../webpack/common/*", "./node_modules/@vencord/types/webpack/common/*"],
-            "@webpack": ["../../webpack/webpack", "./node_modules/@vencord/types/webpack/webpack"],
-            "@webpack/patcher": ["../../webpack/patchWebpack", "./node_modules/@vencord/types/webpack/patchWebpack"],
-            "@webpack/wreq.d": ["../../webpack/wreq.d"],
-            "@webpack/types": ["../../webpack/types", "./node_modules/@vencord/types/webpack/types"]
-        }
-    },
-
-    // The @vencord/types entry point carries the global declarations (VencordNative, IS_WEB, definePlugin's ambient types, ...). In a Vencord checkout it is simply absent and the globals come from Vencord's own sources instead; a non-matching include is not an error.
-    "include": [
-        "*.ts",
-        "*.tsx",
-        "./node_modules/@vencord/types/index.d.ts"
+  // This file has to serve two masters.
+  //
+  // 1. Your editor, while the repository sits on its own somewhere outside Vencord.
+  //    Nothing resolves relative to a Vencord checkout here, so the aliases fall through to the `@vencord/types` package installed by `pnpm install`.
+  //
+  // 2. esbuild, once the repository has been cloned into `<vencord>/src/userplugins/`.
+  //    esbuild reads the *nearest* tsconfig.json to each source file and its `paths` replace the root config's wholesale, so every alias Vencord defines has to berepeated here or the Vencord build fails to resolve them.
+  //
+  // Both are covered by listing the in-tree path first: TypeScript and esbuild each try the entries in order and take the first one that exists on disk.
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "esnext",
+      "esnext.array",
+      "esnext.asynciterable",
+      "esnext.symbol"
     ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noImplicitAny": false,
+    "target": "ESNEXT",
+    "jsx": "preserve",
+    "noEmit": true,
 
-    // TypeScript excludes node_modules by default, which would drop the include entry above.
-    "exclude": []
+    // native.ts is Node code and the UI is React. Listed explicitly because the in-tree case has no node_modules here for TypeScript to discover them from.
+    "types": ["node", "react", "react-dom"],
+
+    // No baseUrl: it is deprecated in TypeScript 6, and both TypeScript and esbuild resolve relative `paths` against this file's directory when it is absent.
+    "paths": {
+      "@api/*": ["../../api/*", "./node_modules/@vencord/types/api/*"],
+      "@components/*": ["../../components/*", "./node_modules/@vencord/types/components/*"],
+      "@main/*": ["../../main/*"],
+      "@debug/*": ["../../debug/*"],
+      "@utils/*": ["../../utils/*", "./node_modules/@vencord/types/utils/*"],
+      "@plugins/*": ["../../plugins/*", "./node_modules/@vencord/types/plugins/*"],
+      "@shared/*": ["../../shared/*", "./node_modules/@vencord/types/shared/*"],
+      "@webpack/common": ["../../webpack/common", "./node_modules/@vencord/types/webpack/common"],
+      "@webpack/common/*": ["../../webpack/common/*", "./node_modules/@vencord/types/webpack/common/*"],
+      "@webpack": ["../../webpack/webpack", "./node_modules/@vencord/types/webpack/webpack"],
+      "@webpack/patcher": ["../../webpack/patchWebpack", "./node_modules/@vencord/types/webpack/patchWebpack"],
+      "@webpack/wreq.d": ["../../webpack/wreq.d"],
+      "@webpack/types": ["../../webpack/types", "./node_modules/@vencord/types/webpack/types"]
+    }
+  },
+
+  // The @vencord/types entry point carries the global declarations (VencordNative, IS_WEB, definePlugin's ambient types, ...). In a Vencord checkout it is simply absent and the globals come from Vencord's own sources instead; a non-matching include is not an error.
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "./node_modules/@vencord/types/index.d.ts"
+  ],
+
+  // TypeScript excludes node_modules by default, which would drop the include entry above.
+  "exclude": []
 }

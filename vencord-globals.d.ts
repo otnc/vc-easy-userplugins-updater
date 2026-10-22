@@ -15,8 +15,8 @@
  * Keep them in sync with `src/globals.d.ts` if you ever add more.
  */
 declare global {
-    export var IS_WEB: boolean;
-    export var IS_DEV: boolean;
+  export var IS_WEB: boolean;
+  export var IS_DEV: boolean;
 }
 
 export { };

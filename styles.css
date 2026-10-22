@@ -1,49 +1,49 @@
 .vc-upu-repo {
-    margin-bottom: 0.75em;
-    padding: 0.75em 1em;
+  margin-bottom: 0.75em;
+  padding: 0.75em 1em;
 }
 
 .vc-upu-repo-name {
-    margin: 0;
+  margin: 0;
 }
 
 .vc-upu-repo-meta {
-    margin: 0.15em 0 0;
-    color: var(--text-muted);
+  margin: 0.15em 0 0;
+  color: var(--text-muted);
 }
 
 .vc-upu-repo-error {
-    color: var(--text-danger);
-    margin: 0;
+  color: var(--text-danger);
+  margin: 0;
 }
 
 .vc-upu-commits {
-    margin-top: 0.6em;
-    padding: 0 0.5em;
+  margin-top: 0.6em;
+  padding: 0 0.5em;
 }
 
 .vc-upu-commit {
-    margin: 0.5em 0;
+  margin: 0.5em 0;
 }
 
 .vc-upu-commit-message {
-    margin-left: 0.5em;
-    color: var(--text-default);
+  margin-left: 0.5em;
+  color: var(--text-default);
 }
 
 .vc-upu-toolchain {
-    margin: 0 0 1em;
-    white-space: pre-line;
-    font-family: var(--font-code, monospace);
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  margin: 0 0 1em;
+  white-space: pre-line;
+  font-family: var(--font-code, monospace);
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .vc-upu-log {
-    padding: 0.75em 1em;
-    font-family: var(--font-code, monospace);
-    font-size: 0.85rem;
-    white-space: pre-wrap;
-    max-height: 16em;
-    overflow-y: auto;
+  padding: 0.75em 1em;
+  font-family: var(--font-code, monospace);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  max-height: 16em;
+  overflow-y: auto;
 }

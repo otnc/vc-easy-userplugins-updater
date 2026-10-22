@@ -1,19 +1,19 @@
 {
-    "name": "vc-easy-userplugins-updater",
-    "version": "1.0.0",
-    "description": "Vencord userplugin that updates git-cloned userplugins and rebuilds Vencord from inside Discord",
-    "license": "GPL-3.0-or-later",
-    "private": true,
-    "scripts": {
-        "typecheck": "tsc --noEmit",
-        "readme": "kiritan build"
-    },
-    "devDependencies": {
-        "@types/node": "^26.0.1",
-        "@types/react": "19.1.0",
-        "@types/react-dom": "19.1.0",
-        "@vencord/types": "^1.14.15",
-        "kiritan": "^0.6.1",
-        "typescript": "^6.0.3"
-    }
+  "name": "vc-easy-userplugins-updater",
+  "version": "1.0.0",
+  "description": "Vencord userplugin that updates git-cloned userplugins and rebuilds Vencord from inside Discord",
+  "license": "GPL-3.0-or-later",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "readme": "kiritan build"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1",
+    "@types/react": "19.1.0",
+    "@types/react-dom": "19.1.0",
+    "@vencord/types": "^1.14.15",
+    "kiritan": "^0.6.1",
+    "typescript": "^6.0.3"
+  }
 }
