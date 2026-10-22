@@ -15,8 +15,7 @@ export const UpdaterLogger = new Logger("UserpluginUpdater", "#b6e3a1");
 type Native = PluginNative<typeof import("./native")>;
 
 /**
- * The native module is keyed by the plugin's `name`. It only exists once Vencord has
- * been rebuilt with this plugin present, so fail with something readable until then.
+ * The native module is keyed by the plugin's `name`. It only exists once Vencord has been rebuilt with this plugin present, so fail with something readable until then.
  */
 export function getNative(): Native {
     if (IS_WEB) throw new Error("This plugin only works in the desktop app, since it needs to run git and node.");
@@ -34,8 +33,7 @@ export function firstLines(text: string, count = 4) {
 }
 
 /**
- * esbuild writes its bundle size report to stderr before any error, so the first lines of
- * a failed build are just noise. Start from the first error marker instead.
+ * esbuild writes its bundle size report to stderr before any error, so the first lines of a failed build are just noise. Start from the first error marker instead.
  */
 export function buildErrorLines(text: string, count = 8) {
     const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
@@ -104,10 +102,7 @@ export function isRebuildPending() {
 }
 
 /**
- * Reinstalls dependencies and rebuilds Vencord. Split out from {@link runUpdate} so a
- * rebuild that failed - a missing node, a broken build - can be retried on its own. Once
- * the repositories have been pulled there is nothing left for `runUpdate` to do, so
- * without this the UI would offer no way forward.
+ * Reinstalls dependencies and rebuilds Vencord. Split out from {@link runUpdate} so a rebuild that failed - a missing node, a broken build - can be retried on its own. Once the repositories have been pulled there is nothing left for `runUpdate` to do, so without this the UI would offer no way forward.
  */
 export async function runRebuild(log: (line: string) => void): Promise<boolean> {
     const native = getNative();
@@ -117,10 +112,7 @@ export async function runRebuild(log: (line: string) => void): Promise<boolean> 
         log("> pnpm install --frozen-lockfile");
         const install = await native.installDeps(nodeCommand, pnpmCommand);
 
-        // Deliberately not fatal. Updating a userplugin practically never changes Vencord's
-        // own dependencies, so refusing to build because pnpm is missing would strand the
-        // tree in a pulled-but-not-built state. If deps really did change, the build below
-        // fails with a much clearer error anyway.
+        // Deliberately not fatal. Updating a userplugin practically never changes Vencord's own dependencies, so refusing to build because pnpm is missing would strand the tree in a pulled-but-not-built state. If deps really did change, the build below fails with a much clearer error anyway.
         if (install.ok) log("  dependencies are up to date");
         else log(`  skipped: ${firstLines(install.stderr, 2)}`);
     }
@@ -141,8 +133,7 @@ export async function runRebuild(log: (line: string) => void): Promise<boolean> 
 }
 
 /**
- * Pulls the given repositories, then rebuilds. The build is what actually makes the new
- * plugin code take effect, so it always runs last and only if at least one repository moved.
+ * Pulls the given repositories, then rebuilds. The build is what actually makes the new plugin code take effect, so it always runs last and only if at least one repository moved.
  */
 export async function runUpdate(targets: RepoInfo[], log: (line: string) => void): Promise<UpdateResult> {
     const native = getNative();

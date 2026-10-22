@@ -40,8 +40,7 @@ const TOOL_NAMES: ToolName[] = ["git", "node", "pnpm"];
 
 type ToastVariant = "default" | "success" | "critical";
 
-// Vencord replaced the Toasts helper with an object-taking showToast, but @vencord/types
-// (1.15.1) still declares the old positional signature.
+// Vencord replaced the Toasts helper with an object-taking showToast, but @vencord/types (1.15.1) still declares the old positional signature.
 const showToastCompat = showToast as unknown as (data: { text: string; variant?: ToastVariant; position?: "top" | "bottom"; }) => void;
 
 function toast(text: string, variant: ToastVariant = "default") {
@@ -124,10 +123,7 @@ function RepoCard({ repo, busy, onUpdate }: { repo: RepoInfo; busy: boolean; onU
 }
 
 /**
- * Discord inherits only the persistent system PATH. Version managers that set PATH from a
- * shell hook - fnm, mise, asdf, nvm.sh - are therefore invisible to it, which is a confusing
- * failure to hit when the exact same command works in a terminal. Always show what was
- * actually resolved so the cause is obvious.
+ * Discord inherits only the persistent system PATH. Version managers that set PATH from a shell hook - fnm, mise, asdf, nvm.sh - are therefore invisible to it, which is a confusing failure to hit when the exact same command works in a terminal. Always show what was actually resolved so the cause is obvious.
  */
 function Toolchain({ nonce }: { nonce: number; }) {
     const [tools, setTools] = useState<Tools | null>(null);
@@ -319,9 +315,7 @@ function UserpluginUpdater() {
                     {isUpdating ? "Working…" : `Update All${outdated.length ? ` (${outdated.length})` : ""}`}
                 </Button>
                 {/*
-                  * Always available, not just after a failure: once a pull has landed there is
-                  * no outdated repository left for "Update All" to act on, so this is the only
-                  * way back to the build step.
+                  * Always available, not just after a failure: once a pull has landed there is no outdated repository left for "Update All" to act on, so this is the only way back to the build step.
                   */}
                 <Button
                     variant={pendingRebuild ? "primary" : "secondary"}

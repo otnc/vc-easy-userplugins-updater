@@ -46,9 +46,7 @@ export const settings = definePluginSettings({
     },
 
     /**
-     * Set as soon as a pull succeeds and cleared once a build succeeds. Without it, a failed
-     * install or build would leave the repositories up to date with no visible work left to
-     * do, and no way to reach the build step from the UI again.
+     * Set as soon as a pull succeeds and cleared once a build succeeds. Without it, a failed install or build would leave the repositories up to date with no visible work left to do, and no way to reach the build step from the UI again.
      */
     pendingRebuild: {
         type: OptionType.CUSTOM,

@@ -59,15 +59,9 @@ async function tryRun(file: string, args: string[], opts: ExecFileOptions = {}):
 // #region tool discovery
 
 /*
- * Discord is started from Explorer or a shortcut, so it only inherits the persistent
- * machine/user PATH. Version managers that inject their shims from a shell hook - fnm,
- * mise, asdf, nvm.sh, and corepack shims that live inside a managed node install - are
- * invisible to it even though they work perfectly in a terminal. nvm-windows happened to
- * work only because it maintains a symlink at a fixed location that is on the real PATH.
+ * Discord is started from Explorer or a shortcut, so it only inherits the persistent machine/user PATH. Version managers that inject their shims from a shell hook - fnm, mise, asdf, nvm.sh, and corepack shims that live inside a managed node install - are invisible to it even though they work perfectly in a terminal. nvm-windows happened to work only because it maintains a symlink at a fixed location that is on the real PATH.
  *
- * So: try PATH, but do not trust it. Fall back to the well-known install locations, and
- * finally to `fnm exec`, since fnm's own binary usually is on PATH even when the node it
- * manages is not.
+ * So: try PATH, but do not trust it. Fall back to the well-known install locations, and finally to `fnm exec`, since fnm's own binary usually is on PATH even when the node it manages is not.
  */
 
 const HOME = homedir();
@@ -167,8 +161,7 @@ async function probe(command: string, args: string[], source: string): Promise<R
 }
 
 async function resolveTool(name: ToolName, configured: string, candidates: string[]): Promise<ResolvedTool | null> {
-    // A configured path wins, but only if it actually works - otherwise a stale setting
-    // would permanently mask a perfectly good installation elsewhere.
+    // A configured path wins, but only if it actually works - otherwise a stale setting would permanently mask a perfectly good installation elsewhere.
     const wanted = configured.trim();
     if (wanted) {
         const fromSetting = await probe(wanted, [], "plugin setting");
@@ -244,9 +237,7 @@ function emptyRepoInfo(dir: string): RepoInfo {
 }
 
 /**
- * Finds every git repository under src/userplugins. A direct child that contains a
- * .git entry is a repository; otherwise we look one level deeper, which covers
- * layouts where clones are grouped inside a folder.
+ * Finds every git repository under src/userplugins. A direct child that contains a .git entry is a repository; otherwise we look one level deeper, which covers layouts where clones are grouped inside a folder.
  */
 async function findRepoDirs(): Promise<string[]> {
     if (!existsSync(USERPLUGINS_DIR)) return [];

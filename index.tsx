@@ -18,8 +18,7 @@ import UpdaterTab from "./UpdaterTab";
 
 const ENTRY_KEY = "vencord_userplugin_updater";
 
-// Discord is still mounting things right after start(), and fetching every repository
-// touches disk and network, so hold off for a moment.
+// Discord is still mounting things right after start(), and fetching every repository touches disk and network, so hold off for a moment.
 const STARTUP_CHECK_DELAY = 10_000;
 
 function UserpluginUpdaterIcon(props: IconProps) {
