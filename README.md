@@ -1,19 +1,16 @@
 # UserpluginUpdater
 
+**English** | [日本語](README.ja.md)
+
 Update your git-cloned userplugins and rebuild Vencord without leaving Discord.
 
-Vencord ships an updater for itself, but nothing for the plugins you dropped into
-`src/userplugins`. This plugin does for them what the built-in Updater tab does for Vencord:
-it finds every git repository under `src/userplugins`, shows what each one is behind by,
-pulls them, reinstalls dependencies, rebuilds Vencord and offers to restart.
+Vencord ships an updater for itself, but nothing for the plugins you dropped into `src/userplugins`. This plugin does for them what the built-in Updater tab does for Vencord: it finds every git repository under `src/userplugins`, shows what each one is behind by, pulls them, reinstalls dependencies, rebuilds Vencord and offers to restart.
 
 ## Requirements
 
 - The **desktop app** (Discord Desktop or Vesktop). The web build has no Node access.
-- A **source install** of Vencord (cloned repo + `pnpm build` + `pnpm inject`), not the
-  standalone installer build.
-- `git` and `node` reachable from the environment Discord was launched in. `pnpm` too,
-  unless you turn off *Run pnpm install before building*.
+- A **source install** of Vencord (cloned repo + `pnpm build` + `pnpm inject`), not the standalone installer build.
+- `git` and `node` reachable from the environment Discord was launched in. `pnpm` too, unless you turn off *Run pnpm install before building*.
 
 ## Install
 
@@ -28,20 +25,15 @@ pnpm build
 
 Restart Discord, then enable **UserpluginUpdater** in Settings → Plugins.
 
-The first build has to be done by hand — the plugin's native module cannot exist before
-Vencord has been built with the plugin present. After that the plugin can rebuild itself.
+The first build has to be done by hand — the plugin's native module cannot exist before Vencord has been built with the plugin present. After that the plugin can rebuild itself.
 
-> A symlink or directory junction into `src/userplugins` does **not** work: esbuild resolves
-> the link to its real path, which lands outside the Vencord tree, and the `@utils/...` path
-> aliases stop resolving. Use a real clone or copy.
+> A symlink or directory junction into `src/userplugins` does **not** work: esbuild resolves the link to its real path, which lands outside the Vencord tree, and the `@utils/...` path aliases stop resolving. Use a real clone or copy.
 
-`node_modules/` is not committed and is not needed for the plugin to build — it only exists
-so the repository type-checks on its own. See [Development](#development).
+`node_modules/` is not committed and is not needed for the plugin to build — it only exists so the repository type-checks on its own. See [Development](#development).
 
 ## Usage
 
-The plugin adds a **Userplugins** entry to the Vencord section of Discord's settings, and an
-*Open Userplugin Updater* action to the Vencord Toolbox.
+The plugin adds a **Userplugins** entry to the Vencord section of Discord's settings, and an *Open Userplugin Updater* action to the Vencord Toolbox.
 
 - **Check for Updates** — `git fetch` in every repository, then show how far behind each is.
 - **Update All** / per-repository **Update** — runs the pipeline below.
@@ -53,8 +45,7 @@ The pipeline:
 3. `node scripts/build/build.mjs` — the same thing `pnpm build` runs
 4. a prompt to restart Discord
 
-`pnpm inject` is deliberately not re-run. It only patches Discord's `app` folder to load
-Vencord from `dist/`, which stays true across rebuilds; you only need it once per install.
+`pnpm inject` is deliberately not re-run. It only patches Discord's `app` folder to load Vencord from `dist/`, which stays true across rebuilds; you only need it once per install.
 
 ## Settings
 
@@ -68,30 +59,21 @@ Vencord from `dist/`, which stays true across rebuilds; you only need it once pe
 
 ## Behaviour worth knowing
 
-- **Repositories with uncommitted changes are skipped**, and *Update All* will not touch
-  them. Commit or stash first. This is why fast-forward only is the default pull mode.
-- **The rebuild only runs if at least one repository actually moved.** A failed pull does not
-  block the others, but it does show up in the log.
-- **A restart is required.** The running Discord already has the old `dist/` in memory;
-  rewriting it changes nothing until the app reloads.
-- Repositories are discovered by looking for a `.git` entry in each direct child of
-  `src/userplugins`, and one level deeper if the child itself is not a repository. Plugins
-  copied in as loose files cannot be updated — there is nothing to pull.
+- **Repositories with uncommitted changes are skipped**, and *Update All* will not touch them. Commit or stash first. This is why fast-forward only is the default pull mode.
+- **The rebuild only runs if at least one repository actually moved.** A failed pull does not block the others, but it does show up in the log.
+- **A restart is required.** The running Discord already has the old `dist/` in memory; rewriting it changes nothing until the app reloads.
+- Repositories are discovered by looking for a `.git` entry in each direct child of `src/userplugins`, and one level deeper if the child itself is not a repository. Plugins copied in as loose files cannot be updated — there is nothing to pull.
 
 ## Development
 
-Userplugins are normally written inside a Vencord checkout, where every `@utils/...` import
-resolves against Vencord's own sources. This repository is set up to be editable on its own
-as well:
+Userplugins are normally written inside a Vencord checkout, where every `@utils/...` import resolves against Vencord's own sources. This repository is set up to be editable on its own as well:
 
 ```sh
 pnpm install     # installs @vencord/types and friends, nothing else
 pnpm typecheck   # tsc --noEmit
 ```
 
-`tsconfig.json` lists each Vencord alias twice — the in-tree relative path first, the
-`@vencord/types` copy second — and both TypeScript and esbuild take the first entry that
-exists on disk. That single file therefore covers both situations:
+`tsconfig.json` lists each Vencord alias twice — the in-tree relative path first, the `@vencord/types` copy second — and both TypeScript and esbuild take the first entry that exists on disk. That single file therefore covers both situations:
 
 | | resolves via |
 | --- | --- |
@@ -100,37 +82,14 @@ exists on disk. That single file therefore covers both situations:
 
 Two things are worth knowing before touching that file:
 
-- esbuild reads the **nearest** `tsconfig.json` to each source file, and its `paths` replace
-  the root config's entirely rather than merging. Dropping an alias from this file breaks the
-  Vencord build for this plugin, even for aliases it does not use directly.
-- `@vencord/types` trails Vencord's `main` branch, and its `globals.d.ts` omits the build-time
-  flags. `vencord-globals.d.ts` fills in the ones this plugin uses. If the published types
-  ever disagree with your Vencord, the editor complains but the build is still fine — the
-  build never looks at `@vencord/types`.
+- esbuild reads the **nearest** `tsconfig.json` to each source file, and its `paths` replace the root config's entirely rather than merging. Dropping an alias from this file breaks the Vencord build for this plugin, even for aliases it does not use directly.
+- `@vencord/types` trails Vencord's `main` branch, and its `globals.d.ts` omits the build-time flags. `vencord-globals.d.ts` fills in the ones this plugin uses. If the published types ever disagree with your Vencord, the editor complains but the build is still fine — the build never looks at `@vencord/types`.
 
-To test a change, copy the folder into `<vencord>/src/userplugins/` (excluding
-`node_modules/`) and run `pnpm build` there.
+To test a change, commit and push it here, then pull it into the Vencord checkout with this plugin's own *Update* button (or `git pull` in `<vencord>/src/userplugins/<this plugin>`).
 
----
+> [!WARNING]
+> Do not copy edited files straight into a clone that already lives in `src/userplugins/`. The copied files show up as uncommitted changes in that clone, so the updater skips it and its *Update* button stays disabled, even after you push the same changes. If that has already happened, discard the copied changes there (`git checkout -- .`) and pull again.
+>
+> A plain copy (not a git clone) is fine for a quick local test, but the updater cannot update it.
 
-## 日本語
-
-`src/userplugins` に git clone したユーザープラグインを、Discord を離れずに更新するプラグインです。
-
-`git pull` → `pnpm install --frozen-lockfile` → `pnpm build` → 再起動、という手作業の流れを
-設定画面のボタン 1 つにまとめます。`pnpm inject` はインストール時に一度実行すれば足りるため、
-毎回は実行しません。
-
-**導入時の注意**: このプラグインのネイティブモジュールは、プラグインを置いた状態で Vencord を
-ビルドして初めて生成されます。そのため初回だけは手動で `pnpm build` が必要です。
-また、シンボリックリンク／ジャンクションでの配置は esbuild がリンクを実体パスに解決してしまい
-`@utils/...` のパスエイリアスが壊れるため、実体のクローンかコピーを置いてください。
-
-未コミットの変更があるリポジトリは安全のためスキップされます。
-
-**開発について**: このリポジトリは Vencord ツリーの外でも型チェックできるよう設定してあります。
-`pnpm install` で `@vencord/types` を入れ、`pnpm typecheck` で確認できます。
-`tsconfig.json` は各エイリアスを「ツリー内の相対パス → `@vencord/types`」の順で二重に定義しており、
-TypeScript も esbuild も先に存在したほうを使うため、単体編集時とクローン配置時の両方で動きます。
-esbuild は最寄りの `tsconfig.json` を読み、その `paths` がルート設定を完全に置き換えるため、
-使っていないエイリアスも含めて消さないでください（消すとビルドが壊れます）。
+The English and Japanese READMEs are generated with [kiritan](https://www.npmjs.com/package/kiritan). Edit `base/README.base.md`, then run `pnpm readme` to regenerate `README.md` and `README.ja.md`.
